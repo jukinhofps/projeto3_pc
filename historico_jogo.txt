@@ -1,0 +1,1 @@
+titulo;tempo_sessao;tempo_total;status
