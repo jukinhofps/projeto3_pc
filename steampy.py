@@ -1,4 +1,3 @@
-import csv
 import datetime
 
 from jogo import Jogo
@@ -13,62 +12,89 @@ recentes = PilhasRecentes()
 historico = []
 tempo_por_jogo = {}
 
-
 def carregar_jogos(nome_arquivo):
+    
     global catalogo, indice_jogos
     catalogo = []
     indice_jogos = {}
     try:
         arquivo = open(nome_arquivo, encoding='utf-8')
-        leitor = csv.reader(arquivo)
-        next(leitor)
+        linhas = arquivo.readlines()
+        arquivo.close()
+
+        if len(linhas) > 0:
+            linhas = linhas[1:]
+
         id_atual = 1
-        for linha in leitor:
+        jogos_carregados = 0
+        jogos_pulados = 0
+
+        for linha in linhas:
+            linha = linha.strip()
+            if not linha:
+                continue
+
+            partes = [p.strip() for p in linha.split(',')]
+
             try:
-                if len(linha) < 13:
+                if len(partes) < 13:
+                    jogos_pulados += 1
                     continue
-                img = linha[0]
-                titulo = linha[1]
-                console = linha[2]
-                genero = linha[3]
-                publisher = linha[4]
-                developer = linha[5]
+
+                img = partes[0]
+                titulo = partes[1]
+                console = partes[2]
+                genero = partes[3]
+                publisher = partes[4]
+                developer = partes[5]
+
                 try:
-                    critic_score = float(linha[6])
+                    critic_score = float(partes[6])
                 except:
                     critic_score = 0.0
                 try:
-                    total_vendas = float(linha[7])
+                    total_vendas = float(partes[7])
                 except:
                     total_vendas = 0.0
                 try:
-                    vendas_an = float(linha[8])
+                    vendas_an = float(partes[8])
                 except:
                     vendas_an = 0.0
                 try:
-                    vendas_jp = float(linha[9])
+                    vendas_jp = float(partes[9])
                 except:
                     vendas_jp = 0.0
                 try:
-                    vendas_eu = float(linha[10])
+                    vendas_eu = float(partes[10])   # PAL sales
                 except:
                     vendas_eu = 0.0
                 try:
-                    outras_vendas = float(linha[11])
+                    outras_vendas = float(partes[11])
                 except:
                     outras_vendas = 0.0
-                data_lanc = linha[12]
-                jogo = Jogo(id_atual, titulo, console, genero, publisher, developer, critic_score, total_vendas, vendas_an, vendas_jp, vendas_eu, outras_vendas, data_lanc)
+
+                data_lanc = partes[12]
+
+                jogo = Jogo(id_atual, titulo, console, genero, publisher, 
+                           developer, critic_score, total_vendas, vendas_an, 
+                           vendas_jp, vendas_eu, outras_vendas, data_lanc)
+                
                 catalogo.append(jogo)
                 indice_jogos[id_atual] = jogo
                 id_atual += 1
-            except:
-                continue
-        arquivo.close()
-        print(f'Catálogo carregado com {len(catalogo)} jogos.')
-    except:
-        print('Erro ao carregar o arquivo.')
+                jogos_carregados += 1
 
+            except Exception:
+                jogos_pulados += 1
+                continue
+
+        print(f'Catálogo carregado com sucesso!')
+        print(f'→ Jogos carregados: {jogos_carregados}')
+        print(f'→ Jogos pulados: {jogos_pulados}')
+        print(f'→ Total no catálogo: {len(catalogo)}')
+
+    except Exception as e:
+        print(f'Erro ao carregar o arquivo: {e}')
 
 def listar_jogos():
     if len(catalogo) == 0:
@@ -164,42 +190,23 @@ def ordenar_jogos(criterio):
     lista = catalogo[:]
 
     if criterio == 'titulo':
-        for i in range(len(lista)):
-            for j in range(i + 1, len(lista)):
-                if lista[i].titulo > lista[j].titulo:
-                    lista[i], lista[j] = lista[j], lista[i]
+        lista.sort(key=lambda x: x.titulo)
     elif criterio == 'nota':
-        for i in range(len(lista)):
-            for j in range(i + 1, len(lista)):
-                if lista[i].critic_score < lista[j].critic_score:
-                    lista[i], lista[j] = lista[j], lista[i]
+        lista.sort(key=lambda x: x.critic_score, reverse=True)
     elif criterio == 'vendas':
-        for i in range(len(lista)):
-            for j in range(i + 1, len(lista)):
-                if lista[i].total_vendas < lista[j].total_vendas:
-                    lista[i], lista[j] = lista[j], lista[i]
+        lista.sort(key=lambda x: x.total_vendas, reverse=True)
     elif criterio == 'data':
-        for i in range(len(lista)):
-            for j in range(i + 1, len(lista)):
-                if lista[i].data_lanc > lista[j].data_lanc:
-                    lista[i], lista[j] = lista[j], lista[i]
+        lista.sort(key=lambda x: x.data_lanc, reverse=True)
     elif criterio == 'console':
-        for i in range(len(lista)):
-            for j in range(i + 1, len(lista)):
-                if lista[i].console > lista[j].console:
-                    lista[i], lista[j] = lista[j], lista[i]
+        lista.sort(key=lambda x: x.console)
     elif criterio == 'genero':
-        for i in range(len(lista)):
-            for j in range(i + 1, len(lista)):
-                if lista[i].genero > lista[j].genero:
-                    lista[i], lista[j] = lista[j], lista[i]
+        lista.sort(key=lambda x: x.genero)
     else:
         print('Critério inválido.')
         return
 
     for jogo in lista:
         jogo.exibir()
-
 
 def adicionar_ao_backlog(jogo):
     if backlog.contem(jogo.id_jogo):
@@ -413,8 +420,8 @@ def recomendar_jogos():
         nota_total += sessao.jogo.critic_score
         nota_cont += 1
 
-    genero_preferido = max(genero_tempo, key=genero_tempo.get)
-    console_preferido = max(console_tempo, key=console_tempo.get)
+    genero_preferido = max(genero_tempo, key=genero_tempo.get) if genero_tempo else ""
+    console_preferido = max(console_tempo, key=console_tempo.get) if console_tempo else ""
     nota_media = nota_total / nota_cont if nota_cont else 0.0
 
     jogados = _obter_jogos_jogados()
@@ -526,17 +533,7 @@ def exibir_dashboard():
             nota_media = sum(notas) / len(notas)
 
     total_iniciados = sum(1 for tempo in tempo_por_jogo.values() if tempo > 0)
-    total_em_andamento = sum(1 for tempo in tempo_por_jogo.values() if 2 <= tempo < 10)
     total_concluidos = sum(1 for tempo in tempo_por_jogo.values() if tempo >= 20)
-
-    jogo_mais_popular = None
-    jogo_melhor_nota = None
-    jogados = _obter_jogos_jogados()
-    if jogados:
-        jogos_jogados = [indice_jogos[id_jogo] for id_jogo in jogados if id_jogo in indice_jogos]
-        if jogos_jogados:
-            jogo_mais_popular = max(jogos_jogados, key=lambda j: j.total_vendas)
-            jogo_melhor_nota = max(jogos_jogados, key=lambda j: j.critic_score)
 
     print('=== DASHBOARD ===')
     print(f'Total de jogos no catálogo: {total_catalogo}')
@@ -552,16 +549,10 @@ def exibir_dashboard():
     print(f'Total de jogos já iniciados: {total_iniciados}')
     print(f'Total de jogos concluídos simbolicamente: {total_concluidos}')
     print(f'Média de horas por sessão: {media_horas:.1f}h')
-    if jogo_mais_popular:
-        print(f'Jogo mais popular já jogado: {jogo_mais_popular.titulo} ({jogo_mais_popular.total_vendas}M vendas)')
-    if jogo_melhor_nota:
-        print(f'Jogo com melhor nota já jogado: {jogo_melhor_nota.titulo} ({jogo_melhor_nota.critic_score})')
 
 
 def _buscar_jogo_por_id(id_jogo):
-    if id_jogo in indice_jogos:
-        return indice_jogos[id_jogo]
-    return None
+    return indice_jogos.get(id_jogo)
 
 
 def menu():
@@ -599,45 +590,36 @@ def menu():
 
         if opcao == '1':
             carregar_jogos('dataset.csv')
-
         elif opcao == '2':
             listar_jogos()
-
         elif opcao == '3':
             termo = input('Digite o nome ou parte do nome: ')
             buscar_jogo_por_nome(termo)
-
         elif opcao == '4':
             genero = input('Digite o gênero: ')
             filtrar_por_genero(genero)
-
         elif opcao == '5':
             console = input('Digite o console: ')
             filtrar_por_console(console)
-
         elif opcao == '6':
             try:
                 nota = float(input('Digite a nota mínima: '))
                 filtrar_por_nota(nota)
             except:
                 print('Valor inválido.')
-
         elif opcao == '7':
             try:
                 vendas = float(input('Digite o mínimo de vendas (em milhões): '))
                 filtrar_por_vendas(vendas)
             except:
                 print('Valor inválido.')
-
         elif opcao == '8':
             publisher = input('Digite o nome da publisher: ')
             filtrar_por_publisher(publisher)
-
         elif opcao == '9':
             print('Critérios: titulo, nota, vendas, data, console, genero')
             criterio = input('Digite o critério: ')
             ordenar_jogos(criterio)
-
         elif opcao == '10':
             try:
                 id_jogo = int(input('Digite o ID do jogo: '))
@@ -648,22 +630,17 @@ def menu():
                     print('Jogo não encontrado.')
             except:
                 print('ID inválido.')
-
         elif opcao == '11':
             mostrar_backlog()
-
         elif opcao == '12':
             jogar_proximo()
             salvar_backlog()
             salvar_recentes()
-
         elif opcao == '13':
             mostrar_recentes()
-
         elif opcao == '14':
             retomar_ultimo_jogo()
             salvar_recentes()
-
         elif opcao == '15':
             try:
                 id_jogo = int(input('Digite o ID do jogo: '))
@@ -677,31 +654,25 @@ def menu():
                     print('Jogo não encontrado.')
             except:
                 print('Valor inválido.')
-
         elif opcao == '16':
             mostrar_historico()
-
         elif opcao == '17':
             recomendar_jogos()
-
         elif opcao == '18':
             gerar_ranking_pessoal()
-
         elif opcao == '19':
             exibir_dashboard()
-
         elif opcao == '20':
             salvar_backlog()
-
         elif opcao == '21':
             salvar_backlog()
             salvar_historico()
             salvar_recentes()
             print('Até logo!')
             break
-
         else:
             print('Opção inválida.')
 
 
-menu()
+if __name__ == "__main__":
+    menu()
